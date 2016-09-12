@@ -1,0 +1,16 @@
+{
+  "name": "birdie",
+  "version": "1.0.0",
+  "description": "",
+  "main": "0001_first_try.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^1.1.3",
+    "mongodb": "^2.2.9"
+  }
+}
