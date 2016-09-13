@@ -72,11 +72,35 @@ module.exports = {
 };
 ```
 
+# Migration Files
+
+Migration files must live in the directory specified by the config, and they must follow the following naming convention: The migration ID should be the first part of the migration filename, separated by the rest of the filename by an underscore. For example `0257_renamed_documents_collection.js`.
+
+Migration files must export two functions, named `up` and `down` respectively. Each of these functions receives two arguments from birdie, (1) mongodb instance and (2) a "done" method you must call when you are done with all of your asynchronous operations.
+
+Here is an example migration file:
+
+```
+module.exports = {
+  up: function (db, done) {
+    db.createCollection('fiddlesticks').then(function (collection) {
+      console.log('Collection was created!');
+      done();
+    }).catch(function (err) {
+      console.log(err);
+    });;
+  },
+  down: function (db, done) {
+    db.collection('fiddlesticks').drop(function (err, reply) {
+      done();
+    });
+  }
+}
+```
+
 # Usage
 
 The command `birdie` run in the same directory as a complete `birdie.config.js` file will work.
-
-On top of the above configuration files and the basic usage, there are a number of options you can specify at the time of running the birdie command from the command line. For a list of available CLI options `birdie --help`
 
 When running Birdie in your NodeJS application as a module, simply do something like the following
 
@@ -91,3 +115,5 @@ function startTheApp () {
 birdie(config, startTheApp);
 
 ```
+
+On top of the configuration file (detailed above) and the basic argument-less usage, there are a number of options you can specify at the time of running the birdie command from the command line. For a list of available CLI options `birdie --help`
