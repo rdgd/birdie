@@ -1,8 +1,9 @@
-/*
-  TODO: multiple environments and mongo options
-  TODO: option in case of error to either rollback with down methods from start or just migrate as far as possible (default)
-*/
+#!/usr/bin/env node
+'use strict';
 
+//  TODO: option in case of error to either rollback with down methods from start or just migrate as far as possible (default)
+
+var cli = require('commander');
 var chalk = require('chalk');
 var fs = require('fs');
 var mongo = require('mongodb');
@@ -11,14 +12,32 @@ var isCLI = require.main === module;
 var postMigrate;
 var c;
 
+cli
+  .option('-e, --environment [string]', 'Environment to run migrations in')
+  .option('-d, --directory [string]', 'Directory which contains migrations to run')
+  .option('-m, --migration [int]', 'Target migration level')
+  .option('-c, --config [string]', 'Path to config file')
+  .parse(process.argv);
+
 if (isCLI) { connect(); }
 
 function connect (callback, config) {
-  c = isCLI ? require(process.cwd() + '/birdie.config.js') : config;
-  let connectionString = makeConnectionString(c.db.username, c.db.password, c.db.host, c.db.port, c.replica.host, c.replica.host_port, c.db.name, c.replica.set);
+  let configFilePath = cli.config ? cli.config : 'birdie.config.js';
+  config = isCLI ? require(process.cwd() + '/' + configFilePath) : config;
+  c = config;
+  // Allows user to put migration data in the top level of the object, OR nest it in the environments object
+  if (config.environments) {
+    if (config.environments[cli.environment]) {
+      config = config.environments[cli.environment];
+    }
+  }
+  if (cli.directory) { c.directory = cli.directory; }
+  if (cli.migration) { c.migration = cli.migration; }
+
+  let connectionString = makeConnectionString(config.db.username, config.db.password, config.db.host, config.db.port, config.replica.host, config.replica.host_port, config.db.name, config.replica.set);
   postMigrate = callback;
   console.log(chalk.cyan(`Connecting to ${connectionString}`));
-  MongoClient.connect(connectionString, c.mongo, function (err, db) {
+  MongoClient.connect(connectionString, config.mongo, function (err, db) {
     if (err) {
       console.log(chalk.red(`Could not establish a database connection`));
       return exitIfCLI(1);
@@ -71,7 +90,10 @@ function runMigrationsFromTo (db, f, t) {
   }
 
   let method = f < t ? 'up' : 'down';
-  let dir = process.cwd() + '/' + c.dir;
+  let dir = process.cwd() + '/' + c.directory;
+  // Normalize, make sure it always ends with a forward slash
+  if (dir[dir.length + 1] !== '/') { dir += '/'; }
+
   fs.readdir(dir, function (err, files) {
     if (err) {
       console.log(chalk.red(`Could not read from the directory "${dir}"`));
@@ -91,7 +113,8 @@ function runMigrationsFromTo (db, f, t) {
     console.log(chalk.cyan(`Checking that files for migration${checkingMsg}`));
 
     if (f < t) {
-      for (let i = (f + 1); i <= t; i++) { migrationsToRun.push(findMigration(i, files)); }
+      console.log(f);
+      for (let i = (parseInt(f) + 1); i <= t; i++) { migrationsToRun.push(findMigration(i, files)); }
     } else {
       /*
         We don't set i equal to f minus one because in this case we need to run the down method, unlike up, but we need to stop short
@@ -143,6 +166,7 @@ function runMigrationsFromTo (db, f, t) {
 function findMigration (i, files) {
   let migration = false;
   let fileName;
+
   for (let x = 0; x < files.length; x++) {
     migration = new RegExp(`${i}_`).test(files[x]);
     if (migration) {
