@@ -25,14 +25,16 @@ cli
 
 if (isCLI) { configure(); }
 
-function configure (config, callback) {
+function configure (config, env, callback) {
   let configFilePath = cli.config ? cli.config : 'birdie.config.js';
   config = isCLI ? require(process.cwd() + '/' + configFilePath) : config;
   c = config;
   // Allows user to put migration data in the top level of the object, OR nest it in the environments object
   if (config.environments) {
-    if (config.environments[cli.environment]) {
+    if (cli.environment && config.environments[cli.environment]) {
       config = config.environments[cli.environment];
+    } else if (env && config.environments[env]) {
+      config = config.environments[env];
     }
   } else {
     // Assigning top level db connection information since there is not environments array in user config
