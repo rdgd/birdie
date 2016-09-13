@@ -21,7 +21,7 @@ cli
 
 if (isCLI) { connect(); }
 
-function connect (callback, config) {
+function connect (config, callback) {
   let configFilePath = cli.config ? cli.config : 'birdie.config.js';
   config = isCLI ? require(process.cwd() + '/' + configFilePath) : config;
   c = config;
