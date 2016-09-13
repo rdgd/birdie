@@ -1,14 +1,14 @@
 {
   "name": "birdie",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.0.1",
+  "description": "A dead simple db migration tool for mongodb.",
   "main": "0001_first_try.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["database", "mongo", "mongodb", "migrations", "migrate", "db migrate", "db migration", "database migration"],
+  "author": "rdgd <ryan.is.gray@gmail.com>",
+  "license": "MIT",
   "dependencies": {
     "chalk": "^1.1.3",
     "mongodb": "^2.2.9"

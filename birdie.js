@@ -48,7 +48,11 @@ function main (db) {
     .then(function (m) {
       if (m[0].current === c.migration) {
         console.log(chalk.green('No migrations to run, you are all up to date!'));
-        if (postMigrate) { postMigrate(); }
+        if (postMigrate) {
+          postMigrate();
+        } else {
+          db.close();
+        }
         return exitIfCLI(0);
       } else {
         runMigrationsFromTo(db, m[0].current, c.migration);        
@@ -86,60 +90,42 @@ function runMigrationsFromTo (db, f, t) {
     console.log(chalk.green(`Migrations directory found`));
     console.log(chalk.cyan(`Checking that files for migration${checkingMsg}`));
 
-    function findMigration (i) {
-      let migrationFound = false;
-      let fileName;
-      for (let x = 0; x < files.length; x++) {
-        migrationFound = new RegExp(`${i}_`).test(files[x]);
-        if (migrationFound) {
-          migrationsToRun.push({ path: files[x], id: i });
-          break;
-        }
-      }
-
-      if (!migrationFound) {
-        console.log(chalk.red(`The corresponding file for migration ${i} was not found!`));
-        console.log(chalk.red(`Make sure the file exists and that it is named according to the documentation.`));
-        exitIfCLI(1);
-      }
-
-      return migrationFound;
-    }
-
     if (f < t) {
-      for (let i = (f + 1); i <= t; i++) {
-        findMigration(i);
-      }
+      for (let i = (f + 1); i <= t; i++) { migrationsToRun.push(findMigration(i, files)); }
     } else {
       /*
         We don't set i equal to f minus one because in this case we need to run the down method, unlike up, but we need to stop short
         so that we don't execute the down method of the target migration level
       */
-      for (let i = f; i > t; i--) {
-        findMigration(i);
-      }
+      for (let i = f; i > t; i--) { migrationsToRun.push(findMigration(i, files)); }
     }
 
     console.log(chalk.green(`Migration files found`));
 
-    /*
-      Yes, looping over the files twice is less efficient, but the number of files will always be trivial, and
-      in the grand scheme of things, not having to try to run possibly broken "down" methods is safer.
-    */
-    for (let i = 0; i < migrationsToRun.length; i++) {
+    migrate(migrationsToRun);
+    function migrate (arr) {
+      if (arr.length === 0) {
+        console.log(chalk.green(`All migrations completed successfully`));
+        setMigrationLevel(db, t, f);
+        console.log(chalk.green(`Updated migrations collection successfully`));
+        if (postMigrate) {
+          postMigrate(db.close);
+        } else {
+          return db.close();
+        }
+      }
+      let p = arr[0].path;
+      let mi = require(dir + p);
+
       // Find migration file corresponding to number
-      console.log(chalk.cyan(`Running migration ${migrationsToRun[i].path}`));
-      let mi = require(dir + migrationsToRun[i].path);
-      if (!mi.up) {
-        console.log(chalk.red(`You must export an up method for every migration.`));
-        return exitIfCLI(1);
-      } 
-      if (!mi.down) {
-        console.log(chalk.red(`You must export a down method for every migration.`));
-        return exitIfCLI(1);
-      } 
+      console.log(chalk.cyan(`Running migration ${p}`));
+      validateMigration(mi);
+
       try {
-        mi[method](db);
+        mi[method](db, function () {
+          arr.shift();
+          migrate(arr);
+        });
       } catch (err) {
         if (err) {
           // Otherwise we get current and previous as the same!
@@ -151,13 +137,27 @@ function runMigrationsFromTo (db, f, t) {
         }
       }
     }
-
-    console.log(chalk.green(`All migrations completed successfully`));
-    setMigrationLevel(db, t, f);
-    console.log(chalk.green(`Updated migrations collection successfully`));
-    if (postMigrate) { postMigrate(); }
-    db.close();
   });
+}
+
+function findMigration (i, files) {
+  let migration = false;
+  let fileName;
+  for (let x = 0; x < files.length; x++) {
+    migration = new RegExp(`${i}_`).test(files[x]);
+    if (migration) {
+      migration = { path: files[x], id: i };
+      break;
+    }
+  }
+
+  if (!migration) {
+    console.log(chalk.red(`The corresponding file for migration ${i} was not found!`));
+    console.log(chalk.red(`Make sure the file exists and that it is named according to the documentation.`));
+    exitIfCLI(1);
+  }
+
+  return migration;
 }
 
 function makeConnectionString (user, pass, host, port, rHost, rPort, dbName, rSet) {
@@ -173,8 +173,17 @@ function makeConnectionString (user, pass, host, port, rHost, rPort, dbName, rSe
   return connectionString;
 }
 
+function validateMigration (mi) {
+  let msg = false;
+  if (!mi.up) { msg = `You must export an up method for every migration.`; } 
+  if (!mi.down) { msg = `You must export a down method for every migration.`; }
+  if (msg) { console.log(chalk.red(msg)); }
+
+  return msg ? exitIfCLI(1) : true;
+}
+
 function setMigrationLevel (db, curr, prev) {
-  db.collection('migrations').updateOne({}, { $set: { current: curr, previous: prev } });
+  db.collection('migrations').updateOne({}, { $set: { current: curr, last: prev } });
 }
 
 function exitIfCLI (code) {
