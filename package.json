@@ -1,6 +1,6 @@
 {
   "name": "birdie",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "A dead simple db migration tool for mongodb.",
   "main": "birdie.js",
   "bin": {
