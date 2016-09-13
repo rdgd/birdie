@@ -166,7 +166,7 @@ function createMigrationsCollectionIfNotExists (db, m) {
   if (m.length === 0) {
     console.log(chalk.yellow('No migrations collection found... creating one now'));
     let migrations = db.collection('migrations');
-    let mCreated = migrations.insertOne({ current: 1, previous: 0 });
+    let mCreated = migrations.insertOne({ current: 1, last: 0 });
     if (!mCreated) { throw 'Could not create migrations collection, please check permissions and try again!'; }
     console.log('Migrations collection created');
     return m;
