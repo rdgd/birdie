@@ -177,18 +177,20 @@ function createMigrationsCollectionIfNotExists (db, m) {
 }
 
 function runMigrationsIfNeeded (db) {
-  let m = getMigrations(db);
-  if (m[0].current === c.migration) {
-    console.log(chalk.green('No migrations to run, you are all up to date!'));
-    if (postMigrate) {
-      postMigrate(db.close);
+  getMigrations(db).then(function(m){
+    console.log(m);
+    if (m[0].current === c.migration) {
+      console.log(chalk.green('No migrations to run, you are all up to date!'));
+      if (postMigrate) {
+        postMigrate(db.close);
+      } else {
+        db.close();
+      }
+      return exitIfCLI(0);
     } else {
-      db.close();
+      runMigrationsFromTo(db, m[0].current, c.migration);        
     }
-    return exitIfCLI(0);
-  } else {
-    runMigrationsFromTo(db, m[0].current, c.migration);        
-  }
+  });
 }
 
 function getMigrationById (i, files) {
