@@ -107,7 +107,6 @@ function runMigrationsFromTo (db, f, t) {
     console.log(chalk.cyan(`Checking that files for migration${checkingMsg}`));
 
     if (f < t) {
-      console.log(f);
       for (let i = (parseInt(f) + 1); i <= t; i++) { migrationsToRun.push(getMigrationById(i, files)); }
     } else {
       /*
