@@ -132,7 +132,7 @@ function runMigrationsFromTo (db, f, t) {
         setMigrationLevel(db, t, f);
         console.log(chalk.green(`Updated migrations collection successfully`));
         if (postMigrate) {
-          postMigrate(db.close);
+          return postMigrate(db.close);
         } else {
           return db.close();
         }
