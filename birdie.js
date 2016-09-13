@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-//  TODO: option in case of error to either rollback with down methods from start or just migrate as far as possible (default)
+// TODO: option in case of error to either rollback with down methods from start or just migrate as far as possible (default)
+// TODO: option to pass existing db connection, so that the user may avoid configuration overhead
 
 var cli = require('commander');
 var chalk = require('chalk');
@@ -18,6 +19,8 @@ cli
   .option('-d, --directory [string]', 'Directory which contains migrations to run')
   .option('-m, --migration [int]', 'Target migration level')
   .option('-c, --config [string]', 'Path to config file')
+  .option('-r, --rollback', 'Revert to last migration')
+  .option('-p, --partial', 'Allow partial migration on failure. This is default behaviour. If set to false, then Birdie will attempt to rollback any changes made.')
   .parse(process.argv);
 
 if (isCLI) { configure(); }
@@ -175,7 +178,7 @@ function runMigrationsIfNeeded (db, m) {
   if (m[0].current === c.migration) {
     console.log(chalk.green('No migrations to run, you are all up to date!'));
     if (postMigrate) {
-      postMigrate();
+      postMigrate(db.close);
     } else {
       db.close();
     }
