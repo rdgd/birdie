@@ -152,7 +152,7 @@ function runMigrationsFromTo (db, f, t) {
       } catch (err) {
         if (err) {
           // Otherwise we get current and previous as the same!
-          if (migrationsToRun[i].id !== f) {
+          if (arr[0].id !== f) {
             setMigrationLevel(db, arr[0].id, f);
           }
           console.log(chalk.red(err));
