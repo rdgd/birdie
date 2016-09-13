@@ -178,7 +178,6 @@ function createMigrationsCollectionIfNotExists (db, m) {
 
 function runMigrationsIfNeeded (db) {
   getMigrations(db).then(function(m){
-    console.log(m);
     if (m[0].current === c.migration) {
       console.log(chalk.green('No migrations to run, you are all up to date!'));
       if (postMigrate) {
