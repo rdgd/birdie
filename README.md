@@ -1,7 +1,7 @@
 # Birdie
-A dead simple database migration tool for MongoDB. Birdie was created because even though MongoDB is incredibly flexible and thus allows you to often forgoe the need to make formal changes to the schema or the data en masse, that simply won't do in my opinion! I don't want to version my data, because that is sloppy, and I don't want to sully my application code with unnecessary logic, when I could just update some documents.
+Birdie was created because even though MongoDB is incredibly flexible and thus allows you to often forgoe the need to make formal changes to the schema or the data en masse, that simply won't do in my opinion! I don't want to version my data, because that is sloppy, and I don't want to sully my application code with unnecessary logic, when I could just update some documents.
 
-Enter Birdie. Birdie is a no frills (nor thrills) approach to handling database migrations with MongoDB. You can use its CLI or you can import it an use it in your source code (I recommending every time you boot your app server).
+Enter Birdie, a dead simple database migration tool for MongoDB. Birdie is a no frills (nor thrills) approach to handling database migrations with MongoDB. Unlike many migration libraries, Birdie does not ship with a query builder, rather Birdie gives you access to a MongoDB database instance in your migrations, empowering you to write you own migrations with the database driver you already know and love. Then what does this library REALLY do?! Birdie simply manages the state of your migrations for you and helps you automate running them from the command line and programmatically in your NodeJS application.
 
 # Configuration
 You can create a `birdie.config.js` file to use in the same directory as the command was issued, or name it something else and use a command line option below to let Birdie know about it.
@@ -100,9 +100,11 @@ module.exports = {
 
 # Usage
 
+You can use Birdie's CLI or you can import it as a module and use it in your source code (I recommending every time you boot your app server).
+
 The command `birdie` run in the same directory as a complete `birdie.config.js` file will work.
 
-When running Birdie in your NodeJS application as a module, simply do something like the following
+When running Birdie in your NodeJS application as a module, simply do something like the following:
 
 ```
 var birdie = require('birdie');

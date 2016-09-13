@@ -9,6 +9,7 @@ var fs = require('fs');
 var mongo = require('mongodb');
 var MongoClient = mongo.MongoClient;
 var isCLI = require.main === module;
+var defaults = require('./defaults');
 var postMigrate;
 var c;
 
@@ -19,9 +20,9 @@ cli
   .option('-c, --config [string]', 'Path to config file')
   .parse(process.argv);
 
-if (isCLI) { connect(); }
+if (isCLI) { configure(); }
 
-function connect (config, callback) {
+function configure (config, callback) {
   let configFilePath = cli.config ? cli.config : 'birdie.config.js';
   config = isCLI ? require(process.cwd() + '/' + configFilePath) : config;
   c = config;
@@ -30,14 +31,27 @@ function connect (config, callback) {
     if (config.environments[cli.environment]) {
       config = config.environments[cli.environment];
     }
+  } else {
+    // Assigning top level db connection information since there is not environments array in user config
+    for (let prop in defaults.db) {
+      if (!c.db[prop] && c.db[prop] !== '') {
+        c.db[prop] = defaults.db[prop];
+      }
+    }
   }
+
   if (cli.directory) { c.directory = cli.directory; }
+  if (!c.directory) { c.directory = defaults.directory; }
   if (cli.migration) { c.migration = cli.migration; }
 
   let connectionString = makeConnectionString(config.db.username, config.db.password, config.db.host, config.db.port, config.replica.host, config.replica.host_port, config.db.name, config.replica.set);
   postMigrate = callback;
+  connect(connectionString, config.mongo);
+}
+
+function connect (connectionString, mongoConfig) {
   console.log(chalk.cyan(`Connecting to ${connectionString}`));
-  MongoClient.connect(connectionString, config.mongo, function (err, db) {
+  MongoClient.connect(connectionString, mongoConfig, function (err, db) {
     if (err) {
       console.log(chalk.red(`Could not establish a database connection`));
       return exitIfCLI(1);
@@ -49,35 +63,10 @@ function connect (config, callback) {
 };
 
 function main (db) {
-  let migrations = db.collection('migrations');
-  // Check if migrations collection exists. If not, create it
-  migrations.find().toArray()
-    .then(function (m) {
-      if (m.length === 0) {
-        console.log(chalk.yellow('No migrations collection found... creating one now'));
-        let mCreated = migrations.insertOne({ current: 1, previous: 0 });
-        if (!mCreated) { throw 'Could not create migrations collection, please check permissions and try again!'; }
-        console.log('Migrations collection created');
-        return m;
-      } else {
-        console.log(chalk.green('Migrations collection found'));
-        return m;
-      }
-    })
-    .then(function (m) {
-      if (m[0].current === c.migration) {
-        console.log(chalk.green('No migrations to run, you are all up to date!'));
-        if (postMigrate) {
-          postMigrate();
-        } else {
-          db.close();
-        }
-        return exitIfCLI(0);
-      } else {
-        runMigrationsFromTo(db, m[0].current, c.migration);        
-      }
-    })
-    .catch( function (err) {
+  getMigrations(db)
+    .then(createMigrationsCollectionIfNotExists.bind(null, db))
+    .then(runMigrationsIfNeeded.bind(null, db))
+    .catch(function (err) {
       console.log(err);
       return exitIfCLI(1);
     });
@@ -114,13 +103,13 @@ function runMigrationsFromTo (db, f, t) {
 
     if (f < t) {
       console.log(f);
-      for (let i = (parseInt(f) + 1); i <= t; i++) { migrationsToRun.push(findMigration(i, files)); }
+      for (let i = (parseInt(f) + 1); i <= t; i++) { migrationsToRun.push(getMigrationById(i, files)); }
     } else {
       /*
         We don't set i equal to f minus one because in this case we need to run the down method, unlike up, but we need to stop short
         so that we don't execute the down method of the target migration level
       */
-      for (let i = f; i > t; i--) { migrationsToRun.push(findMigration(i, files)); }
+      for (let i = f; i > t; i--) { migrationsToRun.push(getMigrationById(i, files)); }
     }
 
     console.log(chalk.green(`Migration files found`));
@@ -163,7 +152,40 @@ function runMigrationsFromTo (db, f, t) {
   });
 }
 
-function findMigration (i, files) {
+function getMigrations (db) {
+  let migrations = db.collection('migrations');
+  return migrations.find().toArray();
+}
+
+function createMigrationsCollectionIfNotExists (db, m) {
+  if (m.length === 0) {
+    console.log(chalk.yellow('No migrations collection found... creating one now'));
+    let migrations = db.collection('migrations');
+    let mCreated = migrations.insertOne({ current: 1, previous: 0 });
+    if (!mCreated) { throw 'Could not create migrations collection, please check permissions and try again!'; }
+    console.log('Migrations collection created');
+    return m;
+  } else {
+    console.log(chalk.green('Migrations collection found'));
+    return m;
+  }
+}
+
+function runMigrationsIfNeeded (db, m) {
+  if (m[0].current === c.migration) {
+    console.log(chalk.green('No migrations to run, you are all up to date!'));
+    if (postMigrate) {
+      postMigrate();
+    } else {
+      db.close();
+    }
+    return exitIfCLI(0);
+  } else {
+    runMigrationsFromTo(db, m[0].current, c.migration);        
+  }
+}
+
+function getMigrationById (i, files) {
   let migration = false;
   let fileName;
 
@@ -215,4 +237,4 @@ function exitIfCLI (code) {
   return isCLI;
 }
 
-module.exports = connect;
+module.exports = configure;
