@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// TODO: option in case of error to either rollback with down methods from start or just migrate as far as possible (default)
 // TODO: option to pass existing db connection, so that the user may avoid configuration overhead
-
 var cli = require('commander');
 var chalk = require('chalk');
 var fs = require('fs');
