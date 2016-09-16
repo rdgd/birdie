@@ -20,7 +20,7 @@ cli
   .option('-m, --migration [int]', 'Target migration level')
   .option('-c, --config [string]', 'Path to config file')
   .option('-r, --revert', 'Revert to last migration state')
-  .option('-p, --partial', 'Allow partial migration on failure. This is default behaviour. If set to false, then Birdie will attempt to rollback any changes made.')
+  .option('-t, --transactional', 'If any single migration fails, then attempt to revert.')
   .parse(process.argv);
 
 if (isCLI) { configure(); }
@@ -146,10 +146,21 @@ function runMigrationsFromTo (db, f, t) {
         if (err) {
           // Otherwise we get current and previous as the same!
           if (arr[0].id !== f) {
-            setMigrationLevel(db, arr[0].id, f);
+            if (cli.transactional) {
+              console.log(`Something went wrong in migration ${arr[0].id}, attempting rollback.`);
+              getMigrations(db).then(function (m) {
+                let last = m[0].last;
+                runMigrationsFromTo(db, arr[0].id, last);
+              }).catch(function(err){
+                console.log(chalk.red(err));
+                exitIfCLI(1, err);
+              });
+            } else {
+              setMigrationLevel(db, arr[0].id, f);
+            }
           }
           console.log(chalk.red(err));
-          return exitIfCLI(1);
+          return exitIfCLI(1, err);
         }
       }
     }
