@@ -4,6 +4,7 @@
 // TODO: option in case of error to either rollback with down methods from start or just migrate as far as possible (default)
 // TODO: option to pass existing db connection, so that the user may avoid configuration overhead
 // TODO: FAIL if two migrations share the same id, perhaps outputting some meta information to help the user understand which was created first
+
 var cli = require('commander');
 var chalk = require('chalk');
 var fs = require('fs');
@@ -192,14 +193,19 @@ function runMigrationsIfNeeded (db) {
 }
 
 function getMigrationById (i, files) {
+  let migrationExists = false;
   let migration = false;
+  let isDuplicated = false;
   let fileName;
 
   for (let x = 0; x < files.length; x++) {
-    migration = new RegExp(`${i}_`).test(files[x]);
-    if (migration) {
+    migrationExists = new RegExp(`${i}_`).test(files[x]);
+    if (migrationExists) {
+      if (migration) {
+        isDuplicated = true;
+        break;
+      }
       migration = { path: files[x], id: i };
-      break;
     }
   }
 
@@ -207,6 +213,12 @@ function getMigrationById (i, files) {
     console.log(chalk.red(`The corresponding file for migration ${i} was not found!`));
     console.log(chalk.red(`Make sure the file exists and that it is named according to the documentation.`));
     exitIfCLI(1);
+  }
+
+  if (isDuplicated) {
+    let msg = `It appears that there is a duplicate migration file for id ${i}`;
+    console.log(chalk.red(msg));
+    exitIfCLI(1, msg);
   }
 
   return migration;
@@ -238,8 +250,10 @@ function setMigrationLevel (db, curr, prev) {
   db.collection('migrations').updateOne({}, { $set: { current: curr, last: prev } });
 }
 
-function exitIfCLI (code) {
+function exitIfCLI (code, msg) {
+  msg = msg ? msg : 'Something went wrong!';
   if (isCLI) { process.exit(code); }
+  if (!isCLI && code === 1) { throw msg; } 
   return isCLI;
 }
 
