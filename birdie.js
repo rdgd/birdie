@@ -19,7 +19,7 @@ cli
   .option('-d, --directory [string]', 'Directory which contains migrations to run')
   .option('-m, --migration [int]', 'Target migration level')
   .option('-c, --config [string]', 'Path to config file')
-  .option('-r, --rollback', 'Revert to last migration')
+  .option('-r, --revert', 'Revert to last migration state')
   .option('-p, --partial', 'Allow partial migration on failure. This is default behaviour. If set to false, then Birdie will attempt to rollback any changes made.')
   .parse(process.argv);
 
@@ -177,6 +177,14 @@ function createMigrationsCollectionIfNotExists (db, m) {
 
 function runMigrationsIfNeeded (db) {
   getMigrations(db).then(function(m){
+    if (cli.revert) {
+      /*
+        The following error should only ever be encountered if they ran the tool without running a migration, which creates the migrations table
+        with current and last values at 0.
+      */
+      if (m[0].current === m[0].last) { exitIfCLI(1, 'Cannot revert to the same migration level you are currently on.'); }
+      return runMigrationsFromTo(db, m[0].current, m[0].last);
+    }
     if (m[0].current === c.migration) {
       console.log(chalk.green('No migrations to run, you are all up to date!'));
       if (postMigrate) {
