@@ -215,7 +215,16 @@ function getMigrationById (i, files) {
   let fileName;
 
   for (let x = 0; x < files.length; x++) {
-    migrationExists = new RegExp(`${i}_`).test(files[x]);
+    var migrationId = -1;
+
+    var r = /^([0-9]+)_/;
+    var matchResult = files[x].match(r);
+
+    if(matchResult && matchResult[1]) {
+      migrationId = parseInt(matchResult[1]);
+    }
+
+    migrationExists = migrationId === i;
     if (migrationExists) {
       if (migration) {
         isDuplicated = true;
