@@ -139,7 +139,7 @@ function runMigrationsFromTo (db, f, t) {
         mi[method](db, function () {
           arr.shift();
           migrate(arr);
-        });
+        }, mongo);
       } catch (err) {
         if (err) {
           // Otherwise we get current and previous as the same!
