@@ -86,7 +86,7 @@ module.exports = {
 
 Migration files must live in the directory specified by the config, and they must follow the following naming convention: The migration ID should be the first part of the migration filename, separated by the rest of the filename by an underscore. For example `0257_renamed_documents_collection.js`.
 
-Migration files must export two functions, named `up` and `down` respectively. Each of these functions receives two arguments from birdie, (1) mongodb instance and (2) a "done" method you must call when you are done with all of your asynchronous operations.
+Migration files must export two functions, named `up` and `down` respectively. Each of these functions receives three arguments from birdie, (1) mongodb instance (2) a "done" method you must call when you are done with all of your asynchronous operations, and (3) which is optional, a reference to the mongodb library so that you can leverage it for creating new instances of ObjectId, Timestamp, and the like.
 
 Here is an example migration file:
 
@@ -100,13 +100,19 @@ module.exports = {
       console.log(err);
     });;
   },
-  down: function (db, done) {
-    db.collection('fiddlesticks').drop(function (err, reply) {
-      done();
-    });
+  down: function (db, done, mongo) {
+    db.collection('fiddlesticks').find({ '_id': new mongo.ObjectId('5845e316b1d13b525517aae4') }).toArray()
+      .then(function (res) {
+          console.log(`The last words from the fiddlesticks collection: ${res}`);
+          db.collection('fiddlesticks').drop(function (err, reply) {
+            done();
+          });
+      });
   }
 }
 ```
+
+
 
 # Usage
 
